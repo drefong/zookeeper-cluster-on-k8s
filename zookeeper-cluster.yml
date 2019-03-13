@@ -1,0 +1,236 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    service.alpha.kubernetes.io/tolerate-unready-endpoints: "true"
+  name: zk-cluster
+  labels:
+    app: zk-cluster
+spec:
+  ports:
+  - port: 2888
+    name: server
+  - port: 3888
+    name: leader-election
+  clusterIP: None
+  selector:
+    app: zk
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: zk-conf
+  labels:
+    app: zk-conf
+data:
+  zoo.cfg: |
+    # http://hadoop.apache.org/zookeeper/docs/current/zookeeperAdmin.html
+    # The number of milliseconds of each tick
+    tickTime=2000
+    # The number of ticks that the initial
+    # synchronization phase can take
+    initLimit=10
+    # The number of ticks that can pass between
+    # sending a request and getting an acknowledgement
+    syncLimit=5
+    # the directory where the snapshot is stored.
+    dataDir= /zk/data
+    dataLogDir= /zk/datalog
+    # Place the dataLogDir to a separate physical disc for better performance
+    # dataLogDir=/disk2/zookeeper
+    
+    # the port at which the clients will connect
+    clientPort=2181
+    # interface to bind
+    #clientPortAddress=
+    
+    # specify all zookeeper servers
+    # The fist port is used by followers to connect to the leader
+    # The second one is used for leader election
+    server.1=zk-cluster-0.zk-cluster:2888:3888
+    server.2=zk-cluster-1.zk-cluster:2888:3888
+    server.3=zk-cluster-2.zk-cluster:2888:3888
+    
+    # To avoid seeks ZooKeeper allocates space in the transaction log file in
+    # blocks of preAllocSize kilobytes. The default block size is 64M. One reason
+    # for changing the size of the blocks is to reduce the block size if snapshots
+    # are taken more often. (Also, see snapCount).
+    #preAllocSize=65536
+    
+    # Clients can submit requests faster than ZooKeeper can process them,
+    # especially if there are a lot of clients. To prevent ZooKeeper from running
+    # out of memory due to queued requests, ZooKeeper will throttle clients so that
+    # there is no more than globalOutstandingLimit outstanding requests in the
+    # system. The default limit is 1,000.ZooKeeper logs transactions to a
+    # transaction log. After snapCount transactions are written to a log file a
+    # snapshot is started and a new transaction log file is started. The default
+    # snapCount is 10,000.
+    snapCount=10000
+    
+    # If this option is defined, requests will be will logged to a trace file named
+    # traceFile.year.month.day.
+    #traceFile=
+    
+    # Leader accepts client connections. Default value is "yes". The leader machine
+    # coordinates updates. For higher update throughput at thes slight expense of
+    # read throughput the leader can be configured to not accept clients and focus
+    # on coordination.
+    leaderServes=yes
+    
+    # Since 3.4.0: When enabled, ZooKeeper auto purge feature retains the autopurge.
+    # snapRetainCount most recent snapshots and the corresponding transaction logs
+    # in the dataDir and dataLogDir respectively and deletes the rest.
+    # Defaults to 3. Minimum value is 3.
+    #autopurge.snapRetainCount=3
+    
+    # Since 3.4.0: The time interval in hours for which the purge task has to be
+    # triggered. Set to a positive integer (1 and above) to enable the auto purging.
+    # Defaults to 0.
+    #autopurge.purgeInterval=1
+    
+    # Maximum allowed connections
+    #maxClientCnxns=60
+    
+    
+    # The minimum session timeout in milliseconds that the server will allow the # client to negotiate. Defaults to 2 times the tickTime.
+    #minSessionTimeout=2
+    
+    # The maximum session timeout in milliseconds that the server will allow the # client to negotiate. Defaults to 20 times the tickTime.
+    #maxSessionTimeout=20
+
+  log4j.properties: |
+    # Format is "<default threshold> (, <appender>)+                        
+                                                    
+    # DEFAULT: console appender only                
+    log4j.rootLogger=${zookeeper.root.logger}       
+                                                    
+    # Example with rolling log file                 
+    #log4j.rootLogger=DEBUG, CONSOLE, ROLLINGFILE   
+                                                    
+    # Example with rolling log file and tracing     
+    #log4j.rootLogger=TRACE, CONSOLE, ROLLINGFILE, TRACEFILE
+                                                            
+    #                                                       
+    # Log INFO level and above messages to the console      
+    #                                                       
+    log4j.appender.CONSOLE=org.apache.log4j.ConsoleAppender 
+    log4j.appender.CONSOLE.Threshold=${zookeeper.console.threshold}
+    log4j.appender.CONSOLE.layout=org.apache.log4j.PatternLayout   
+    log4j.appender.CONSOLE.layout.ConversionPattern=%d{ISO8601} [myid:%X{myid}] - %-5p [%t:%C{1}@%L] - %m%n
+                                                                                                           
+    #                                                                                                      
+    # Add ROLLINGFILE to rootLogger to get log file output                                                 
+    #    Log DEBUG level and above messages to a log file                                                  
+    log4j.appender.ROLLINGFILE=org.apache.log4j.RollingFileAppender                                        
+    log4j.appender.ROLLINGFILE.Threshold=${zookeeper.log.threshold}                                        
+    log4j.appender.ROLLINGFILE.File=${zookeeper.log.dir}/${zookeeper.log.file}                             
+                                                                                                           
+    # Max log file size of 10MB                                                                            
+    log4j.appender.ROLLINGFILE.MaxFileSize=10MB                                                            
+    # uncomment the next line to limit number of backup files                                              
+    #log4j.appender.ROLLINGFILE.MaxBackupIndex=10                                                          
+                                                                                                           
+    log4j.appender.ROLLINGFILE.layout=org.apache.log4j.PatternLayout          
+    log4j.appender.ROLLINGFILE.layout.ConversionPattern=%d{ISO8601} [myid:%X{myid}] - %-5p [%t:%C{1}@%L] - %m%n
+                                                                                                               
+                                                                                                               
+    #                                                                                                          
+    # Add TRACEFILE to rootLogger to get log file output                                                       
+    #    Log DEBUG level and above messages to a log file                                                      
+    log4j.appender.TRACEFILE=org.apache.log4j.FileAppender                                                     
+    log4j.appender.TRACEFILE.Threshold=TRACE                                                                   
+    log4j.appender.TRACEFILE.File=${zookeeper.tracelog.dir}/${zookeeper.tracelog.file}                         
+                                                                                                               
+    log4j.appender.TRACEFILE.layout=org.apache.log4j.PatternLayout                                             
+    ### Notice we are including log4j's NDC here (%x)                                                          
+    log4j.appender.TRACEFILE.layout.ConversionPattern=%d{ISO8601} [myid:%X{myid}] - %-5p [%t:%C{1}@%L][%x] - %m%n
+  
+  zkOk.sh: |
+    #!/usr/bin/env bash
+    sleep 120
+    ZK_CLIENT_PORT=${ZK_CLIENT_PORT:-2181}
+    OK=$(echo ruok | nc 127.0.0.1 $ZK_CLIENT_PORT)
+    if [ "$OK" == "imok" ]; then
+        exit 0
+    else
+        exit 1
+    fi
+
+---
+apiVersion: policy/v1beta1
+kind: PodDisruptionBudget
+metadata:
+  name: zk-budget
+spec:
+  selector:
+    matchLabels:
+      app: zk
+  minAvailable: 2
+---
+apiVersion: apps/v1beta1
+kind: StatefulSet
+metadata:
+  name: zk-cluster
+spec:
+  podManagementPolicy: Parallel
+  serviceName: zk-cluster
+  replicas: 3
+  template:
+    metadata:
+      labels:
+        app: zk
+      annotations:
+        pod.alpha.kubernetes.io/initialized: "true"
+    spec:
+      containers:
+      - name: zk-cluster
+        imagePullPolicy: Always
+        image: 10.11.100.85/library/zk-cluster:3.4.10
+#        resources:
+#          requests:
+#            memory: "256Mi"
+#            cpu: "1"
+        ports:
+        - containerPort: 2181
+          name: client
+        - containerPort: 2888
+          name: server
+        - containerPort: 3888
+          name: leader-election
+        readinessProbe:
+          exec:
+            command:
+            - sh
+            - -c
+            - "/conf/zkOk.sh"
+          initialDelaySeconds: 15
+          timeoutSeconds: 5
+        livenessProbe:
+          exec:
+            command:
+            - sh
+            - -c
+            - "/conf/zkOk.sh"
+          initialDelaySeconds: 15
+          timeoutSeconds: 5
+        volumeMounts:
+        - name: datadir
+          mountPath: /zk
+        - name: conf
+          mountPath: /conf
+      volumes:
+      - name: conf
+        configMap:
+          name: zk-conf 
+          defaultMode: 0755
+  volumeClaimTemplates:
+  - metadata:
+      name: datadir
+      annotations:
+        volume.alpha.kubernetes.io/storage-class: anything
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 100Mi
