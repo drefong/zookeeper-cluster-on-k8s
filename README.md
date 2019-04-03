@@ -1,4 +1,4 @@
-﻿# zookeeper-cluster-in-k8s
+﻿# zookeeper-cluster-on-k8s
 configmap：
     
       configmap实现配置文件的构建，包括zoo.cfg和log4j.properties两个配置文件和脚本zkOk.sh，其中zoo.cfg是主配置文件，定义dataDir、dataLogDir、server list等。其中server list中由于pod位于同一namespace，使用简短域名解析pod_name.service_name，完整域名格式pod_name.server_name.namespace.svc.cluster.local。本范例中可以使用zk-cluster-0.zk-cluster.default.svc.cluster.local。
